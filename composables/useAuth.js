@@ -47,7 +47,7 @@ export const useAuth = async ({
       data.value = response.data;
     } catch (error) {
       errorResponse.value = error;
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -97,7 +97,7 @@ export const useAuth = async ({
       return response.data;
     } catch (error) {
       errorResponse.value = error;
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -120,7 +120,7 @@ export const useAuth = async ({
       return response.data;
     } catch (error) {
       errorResponse.value = error;
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -142,7 +142,7 @@ export const useAuth = async ({
       errorResponse.value = error;
       user.value = null;
 
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -162,7 +162,7 @@ export const useAuth = async ({
       return response.data;
     } catch (error) {
       errorResponse.value = error;
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -182,7 +182,7 @@ export const useAuth = async ({
       return response.data;
     } catch (error) {
       errorResponse.value = error;
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -201,7 +201,7 @@ export const useAuth = async ({
       return response.data;
     } catch (error) {
       errorResponse.value = error;
-      return error;
+      throw error;
     } finally {
       isLoading.value = false;
 
