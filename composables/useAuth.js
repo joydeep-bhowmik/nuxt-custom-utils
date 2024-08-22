@@ -3,7 +3,7 @@ import { $api } from "~/lib/$http";
 import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
 export const useAuth = async ({
   googleAuth = null,
-  redirectToOnSuccess = "/dashboard",
+  redirectToOnSuccess = false,
 } = {}) => {
   const isLoading = ref(false);
   const errors = ref(null);
@@ -12,6 +12,7 @@ export const useAuth = async ({
   const data = ref(null);
   const errorResponse = ref(null);
   const user = useState("user", () => null);
+  const router = useRouter();
 
   const initializeGoogleAuth = () => {
     if (googleAuth?.clientId) {
@@ -44,6 +45,10 @@ export const useAuth = async ({
         },
       });
 
+      if (response.data.token) {
+        (await token).value = response.data.token;
+      }
+
       data.value = response.data;
     } catch (error) {
       errorResponse.value = error;
@@ -55,28 +60,6 @@ export const useAuth = async ({
 
   const token = await useCapCookie("token", {
     days: 30,
-  });
-
-  watch(data, (value) => {
-    errors.value = null;
-    errorResponse.value = {};
-    isSuccess.value = true;
-
-    isError.value = false;
-
-    redirectToOnSuccess && navigateTo(redirectToOnSuccess);
-  });
-
-  watch(errorResponse, (error) => {
-    if (!error) return;
-
-    errors.value = error.response?.data?.errors;
-
-    errorResponse.value = error.response;
-
-    isError.value = true;
-
-    isSuccess.value = false;
   });
 
   const login = async (formObject) => {
@@ -208,6 +191,34 @@ export const useAuth = async ({
       (await token).value = null;
     }
   };
+
+  watch(data, (value) => {
+    errors.value = null;
+    errorResponse.value = {};
+    isSuccess.value = true;
+
+    isError.value = false;
+
+    if (redirectToOnSuccess && redirectToOnSuccess === "auto") {
+      return window.history.length > 1 ? router.back() : navigateTo("/");
+    }
+
+    if (redirectToOnSuccess) {
+      return redirectToOnSuccess && navigateTo(redirectToOnSuccess);
+    }
+  });
+
+  watch(errorResponse, (error) => {
+    if (!Object.keys(error).length) return;
+
+    errors.value = error.response?.data?.errors;
+
+    errorResponse.value = error.response;
+
+    isError.value = true;
+
+    isSuccess.value = false;
+  });
 
   return {
     initializeGoogleAuth,
