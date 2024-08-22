@@ -1,31 +1,81 @@
-import { $deleteCookie, $setCookie } from "~/magics/$cookies";
-import { $api } from "~/magics/$http";
-
-export const useAuth = () => {
+import useCapCookie from "./useCapCookie";
+import { $api } from "~/lib/$http";
+import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
+export const useAuth = async ({
+  googleAuth = null,
+  redirectToOnSuccess = "/dashboard",
+} = {}) => {
   const isLoading = ref(false);
   const errors = ref(null);
   const isError = ref(false);
+  const isSuccess = ref(false);
   const data = ref(null);
-  const errorObject = ref(null);
-  const errorMessage = ref(null);
+  const errorResponse = ref(null);
   const user = useState("user", () => null);
+
+  const initializeGoogleAuth = () => {
+    if (googleAuth?.clientId) {
+      GoogleAuth.initialize({
+        clientId: googleAuth.clientId,
+        scopes: ["profile", "email"],
+      });
+    } else {
+      throw new Error("Google authentication is not configured.");
+    }
+  };
+
+  async function GoogleLogin() {
+    if (!googleAuth?.clientId) {
+      throw new Error("Google authentication is not configured.");
+    }
+
+    isLoading.value = true;
+
+    try {
+      const google_response = await GoogleAuth.signIn();
+
+      console.log(google_response);
+
+      const response = await $api("/auth/google", {
+        method: "POST",
+        params: {
+          ...google_response,
+          id_token: google_response.authentication.idToken,
+        },
+      });
+
+      data.value = response.data;
+    } catch (error) {
+      errorResponse.value = error;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  const token = await useCapCookie("token", {
+    days: 30,
+  });
 
   watch(data, (value) => {
     errors.value = null;
+    errorResponse.value = {};
+    isSuccess.value = true;
 
-    errorMessage.value = null;
+    isError.value = false;
 
-    errorObject.value = {};
+    redirectToOnSuccess && navigateTo(redirectToOnSuccess);
   });
 
-  watch(errorObject, (error) => {
+  watch(errorResponse, (error) => {
     if (!error) return;
 
     errors.value = error.response?.data?.errors;
 
-    errorMessage.value = error.response?.data?.message;
+    errorResponse.value = error.response;
 
     isError.value = true;
+
+    isSuccess.value = false;
   });
 
   const login = async (formObject) => {
@@ -37,17 +87,15 @@ export const useAuth = () => {
         params: formObject,
       });
 
-      if (response.data.token) {
-        $setCookie("token", response.data.token, 30);
-      }
-
       data.value = response.data;
 
-      navigateTo("/dashboard");
+      if (response.data.token) {
+        (await token).value = response.data.token;
+      }
 
       return response.data;
     } catch (error) {
-      errorObject.value = error;
+      errorResponse.value = error;
     } finally {
       isLoading.value = false;
     }
@@ -62,16 +110,14 @@ export const useAuth = () => {
       });
 
       if (response.data.token) {
-        $setCookie("token", response.data.token, 30);
+        (await token).value = response.data.token;
       }
 
       data.value = response.data;
 
-      navigateTo("/dashboard");
-
       return response.data;
     } catch (error) {
-      errorObject.value = error;
+      errorResponse.value = error;
     } finally {
       isLoading.value = false;
     }
@@ -90,7 +136,8 @@ export const useAuth = () => {
 
       return response.data;
     } catch (error) {
-      errorObject.value = error;
+      errorResponse.value = error;
+      user.value = null;
     } finally {
       isLoading.value = false;
     }
@@ -109,7 +156,7 @@ export const useAuth = () => {
 
       return response.data;
     } catch (error) {
-      errorObject.value = error;
+      errorResponse.value = error;
     } finally {
       isLoading.value = false;
     }
@@ -128,7 +175,7 @@ export const useAuth = () => {
 
       return response.data;
     } catch (error) {
-      errorObject.value = error;
+      errorResponse.value = error;
     } finally {
       isLoading.value = false;
     }
@@ -146,25 +193,29 @@ export const useAuth = () => {
 
       return response.data;
     } catch (error) {
-      errorObject.value = error;
+      errorResponse.value = error;
     } finally {
       isLoading.value = false;
 
-      await $deleteCookie("token");
+      (await token).value = null;
     }
   };
 
   return {
+    initializeGoogleAuth,
     login,
     isLoading,
     isError,
+    isSuccess,
     errors,
     data,
-    errorObject,
+    errorResponse,
     register,
     getUser,
     forgotPassword,
     resetPassword,
     logout,
+    GoogleLogin,
+    user,
   };
 };
